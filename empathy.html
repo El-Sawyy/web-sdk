@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Service Empathy Simulator for Tempo.fit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .feedback-card, .suggestion-card, .history-item {
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">AI-Powered Empathy Simulator</h1>
+            <p id="header-subtitle" class="text-md text-gray-600 mt-2">Practice real-world Tempo.fit customer scenarios.</p>
+            <button id="logout-btn" class="hidden mt-2 text-sm text-red-600 hover:text-red-800 font-semibold">Logout</button>
+        </header>
+
+        <!-- Auth View -->
+        <div id="auth-view" class="bg-white p-8 rounded-2xl shadow-lg max-w-md mx-auto">
+            <div id="login-form">
+                <h2 class="text-2xl font-bold mb-4 text-center">Login</h2>
+                <input type="email" id="login-email" placeholder="Email (admin@tempo.fit)" class="w-full p-3 mb-4 border rounded">
+                <input type="password" id="login-password" placeholder="Password (admin123)" class="w-full p-3 mb-4 border rounded">
+                <button id="login-btn" class="w-full bg-blue-500 text-white p-3 rounded">Login</button>
+                <p class="text-center mt-4">Don't have an account? <a href="#" id="show-register" class="text-blue-500">Register</a></p>
+            </div>
+            <div id="register-form" class="hidden">
+                <h2 class="text-2xl font-bold mb-4 text-center">Register</h2>
+                <input type="email" id="register-email" placeholder="Email" class="w-full p-3 mb-4 border rounded">
+                <input type="password" id="register-password" placeholder="Password" class="w-full p-3 mb-4 border rounded">
+                <button id="register-btn" class="w-full bg-green-500 text-white p-3 rounded">Register</button>
+                <p class="text-center mt-4">Already have an account? <a href="#" id="show-login" class="text-blue-500">Login</a></p>
+            </div>
+             <p id="auth-error" class="text-red-500 text-center mt-4"></p>
+        </div>
+
+        <!-- Main Menu View -->
+        <div id="main-menu" class="hidden text-center">
+            <div id="user-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <button data-action="assigned" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">📝 My Assigned Scenarios</h3>
+                    <p class="text-gray-600">Practice scenarios assigned to you by an admin.</p>
+                </button>
+                <button data-action="practice" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">🚀 Practice Random Scenarios</h3>
+                    <p class="text-gray-600">Jump into a random multi-step simulation.</p>
+                </button>
+                <button data-action="quick-fire" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">⚡ AI Quick-Fire Round</h3>
+                    <p class="text-gray-600">Face unique, AI-generated single-step problems.</p>
+                </button>
+                <button data-action="create" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">✍️ Create a Scenario</h3>
+                    <p class="text-gray-600">Design a new custom scenario for your own practice.</p>
+                </button>
+                 <button data-action="history" class="card bg-white p-6 rounded-lg cursor-pointer text-left col-span-1 md:col-span-2">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">📈 View My History</h3>
+                    <p class="text-gray-600">Review your past performance, feedback, and ideal responses.</p>
+                </button>
+                 <button data-action="email-crafter" class="card bg-orange-500 text-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2">✉️ AI Email Crafter</h3>
+                    <p>Craft the perfect customer response email based on the situation and desired resolution.</p>
+                </button>
+                <button data-action="saved-emails" class="card bg-teal-500 text-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2">📚 My Saved Emails</h3>
+                    <p>Access your personal collection of saved, highly effective email templates.</p>
+                </button>
+                <button data-action="empathy-help" class="card bg-purple-600 text-white p-6 rounded-lg cursor-pointer text-left col-span-1 md:col-span-2">
+                    <h3 class="text-xl font-bold mb-2">🧠 AI Empathy Coach</h3>
+                    <p>Get intelligent, empathetic guidance for a tough customer situation you're facing now.</p>
+                </button>
+            </div>
+             <button id="admin-dashboard-btn" class="hidden mt-6 card bg-indigo-600 text-white p-4 rounded-lg w-full md:w-1/2 mx-auto">
+                <h3 class="text-xl font-bold">👑 Admin Dashboard</h3>
+            </button>
+        </div>
+
+        <!-- Empathy Assistant View -->
+        <div id="empathy-assistant-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-2xl font-bold mb-4">🧠 AI Empathy Coach</h2>
+            <p class="text-gray-600 mb-4">Describe the tough customer situation you're facing. The AI will analyze the core emotion and provide an intelligence-powered empathy report to help you respond effectively.</p>
+            <label for="situation-description" class="block text-sm font-medium text-gray-700">Customer Situation</label>
+            <textarea id="situation-description" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" rows="4" placeholder="e.g., The customer is angry because their delivery was delayed and missed a birthday."></textarea>
+            <div class="mt-6 flex justify-end">
+                <button id="get-empathy-help-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">Get Empathy Report</button>
+            </div>
+            <div id="empathy-help-loading" class="hidden flex-col items-center justify-center mt-4">
+                 <div class="loader"></div>
+                 <p class="text-gray-600 mt-2">Your empathy coach is thinking...</p>
+             </div>
+            <div id="empathy-response-container" class="mt-6 hidden"></div>
+        </div>
+        
+        <!-- AI Email Crafter View -->
+        <div id="email-crafter-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-2xl font-bold mb-4">✉️ AI Email Crafter</h2>
+            <p class="text-gray-600 mb-6">Provide the necessary details, and the AI will generate a professional, empathetic email ready to be sent to your customer.</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="customer-email-input" class="block text-sm font-medium text-gray-700">Original Customer Email</label>
+                    <textarea id="customer-email-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" rows="5" placeholder="Paste the customer's full email here..."></textarea>
+                </div>
+                <div>
+                    <label for="resolution-input" class="block text-sm font-medium text-gray-700">Resolution / Key Information to Convey</label>
+                    <textarea id="resolution-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" rows="3" placeholder="e.g., The replacement order has been shipped via overnight delivery. Tracking number is X."></textarea>
+                </div>
+                <div>
+                    <label for="alternatives-input" class="block text-sm font-medium text-gray-700">Alternatives or Extra Details (Optional)</label>
+                    <textarea id="alternatives-input" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" rows="2" placeholder="e.g., We've also added a $20 credit to their account for the inconvenience."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button id="craft-email-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">Craft Email</button>
+            </div>
+            
+            <div id="email-craft-loading" class="hidden flex-col items-center justify-center mt-4">
+                 <div class="loader"></div>
+                 <p class="text-gray-600 mt-2">AI is crafting your email...</p>
+             </div>
+
+            <div id="crafted-email-container" class="hidden mt-6 text-left p-4 bg-gray-50 border rounded-lg">
+                 <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-lg font-bold text-gray-800">Generated Email Draft</h3>
+                 </div>
+                 <div class="bg-white p-2 border rounded">
+                     <p class="text-sm font-semibold text-gray-600">Subject:</p>
+                     <input id="crafted-email-subject" type="text" class="w-full p-1 border-0 focus:ring-0">
+                 </div>
+                 <div class="bg-white p-2 border rounded mt-2">
+                      <p class="text-sm font-semibold text-gray-600">Body:</p>
+                     <textarea id="crafted-email-body" class="w-full p-1 border-0 focus:ring-0" rows="10"></textarea>
+                 </div>
+                 <div class="mt-4 flex justify-end space-x-2">
+                    <button id="recraft-email-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm transition-colors">Recraft</button>
+                    <div class="flex-grow"></div>
+                    <input type="text" id="email-category-input" placeholder="Category (e.g., Billing)" class="p-2 border rounded-md text-sm">
+                    <button id="save-email-btn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded text-sm transition-colors">Save to My Emails</button>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Saved Emails View -->
+        <div id="saved-emails-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <div class="flex justify-between items-center mb-6">
+                 <h2 class="text-3xl font-bold">📚 My Saved Emails</h2>
+                 <div>
+                    <label for="category-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by category:</label>
+                    <select id="category-filter" class="rounded-md border-gray-300 shadow-sm"></select>
+                 </div>
+            </div>
+            <div id="saved-emails-container" class="space-y-4"></div>
+        </div>
+
+        <!-- Assigned Scenarios View -->
+        <div id="assigned-scenarios-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-3xl font-bold mb-4 text-center">My Assigned Scenarios</h2>
+            <div id="assigned-scenarios-container" class="space-y-4"></div>
+        </div>
+
+        <!-- Create Scenario View -->
+        <div id="create-scenario-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-2xl font-bold mb-4">✨ Create a Custom Scenario</h2>
+            <p class="text-gray-600 mb-4">Describe a customer service situation. The AI will generate a title, description, persona, and a 3-step dialogue tree for it.</p>
+            <label for="scenario-topic" class="block text-sm font-medium text-gray-700">Scenario Topic</label>
+            <input type="text" id="scenario-topic" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3" placeholder="e.g., A customer's weights are not being recognized by the AI">
+            <div id="modal-loading" class="hidden flex-col items-center justify-center mt-4">
+                <div class="loader"></div>
+                <p class="text-gray-600 mt-2">Generating your custom scenario...</p>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="generate-scenario-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">Generate & Save</button>
+            </div>
+        </div>
+
+        <!-- History List View -->
+        <div id="history-list-view" class="hidden">
+             <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-3xl font-bold mb-4 text-center">My Session History</h2>
+            <div id="history-list-container" class="space-y-4"></div>
+        </div>
+
+        <!-- History Detail View -->
+        <div id="history-detail-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button id="back-to-history-list-btn" class="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to History</button>
+            <h2 id="history-detail-title" class="text-2xl font-bold mb-2"></h2>
+            <p class="text-lg font-semibold mb-4">Final Empathy Score: <span id="history-detail-score" class="text-blue-600"></span></p>
+            <button id="get-summary-btn" class="w-full mb-4 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">✨ Get Summary & Tip</button>
+            <div id="history-summary-container" class="hidden mb-4 p-4 bg-indigo-50 rounded-lg"></div>
+            <div id="history-detail-interactions" class="space-y-6"></div>
+        </div>
+
+        <!-- Simulator View -->
+        <div id="simulator" class="hidden bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+            <div id="scenario-title" class="text-2xl font-bold mb-2 text-gray-900"></div>
+            <div id="customer-persona" class="text-sm text-gray-500 mb-4 italic"></div>
+            <div class="h-4 bg-gray-200 rounded-full mb-4 overflow-hidden">
+                <div id="empathy-meter" class="h-full bg-green-500 rounded-full transition-all duration-500" style="width: 50%;"></div>
+            </div>
+            <p class="text-right text-sm text-gray-500 mb-4">Empathy Meter</p>
+            <div id="dialogue-container" class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200 min-h-[100px]">
+                <p class="font-semibold text-gray-600 mb-2 flex items-center">
+                    Customer says:
+                    <button id="play-audio-btn" class="ml-2 text-xl cursor-pointer hover:scale-110 transition-transform">🔊</button>
+                    <span id="audio-loader" class="hidden ml-2 h-5 w-5 border-t-2 border-b-2 border-gray-900 rounded-full animate-spin"></span>
+                </p>
+                <p id="customer-dialogue" class="text-gray-800"></p>
+            </div>
+            <div id="response-area">
+                <div class="flex justify-between items-center mb-2">
+                    <label for="user-response" class="block font-semibold text-gray-700">Your Response:</label>
+                    <div>
+                        <button id="analyze-tone-btn" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold mr-4">✨ Analyze Tone</button>
+                        <button id="get-suggestions-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">✨ Get Suggestions</button>
+                    </div>
+                </div>
+                <div id="tone-analysis-container" class="mb-4 hidden"></div>
+                <div id="suggestions-container" class="mb-4 hidden"></div>
+                <textarea id="user-response" class="w-full p-3 border border-gray-300 rounded-lg" rows="4" placeholder="Type your empathetic response here..."></textarea>
+                <button id="submit-response-btn" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Submit for Feedback</button>
+            </div>
+            <div id="loading-indicator" class="hidden flex-col items-center justify-center mt-4">
+                <div class="loader"></div><p class="text-gray-600 mt-2">AI coach is thinking...</p>
+            </div>
+            <div id="feedback-container" class="mt-6 hidden"></div>
+            <div class="mt-6 flex justify-between items-center">
+                 <button class="back-to-menu-btn bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">Back to Menu</button>
+                 <button id="next-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg hidden">Next Step</button>
+            </div>
+        </div>
+        
+        <!-- Completion Screen -->
+        <div id="completion-screen" class="hidden text-center bg-white p-8 rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold text-green-600 mb-4">Scenario Complete!</h2>
+            <p id="final-feedback" class="text-lg text-gray-700 mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="restart-scenario-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg">Try Again</button>
+                <button id="choose-another-scenario-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg">Another Random Scenario</button>
+            </div>
+             <!-- NEW FEATURE START -->
+            <div class="mt-8 border-t pt-6">
+                 <button id="draft-email-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">✨ Draft Follow-up Email</button>
+            </div>
+            <div id="email-draft-container" class="hidden mt-6 text-left p-4 bg-gray-50 border rounded-lg">
+                <div id="email-draft-loading" class="hidden flex flex-col items-center justify-center py-8">
+                    <div class="loader"></div>
+                    <p class="text-gray-600 mt-2">Drafting email...</p>
+                </div>
+                <div id="email-draft-content" class="hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-bold text-gray-800">Generated Email Draft</h3>
+                        <button id="copy-email-btn" class="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1 rounded text-sm transition-colors">Copy</button>
+                    </div>
+                    <div class="bg-white p-2 border rounded">
+                        <p class="text-sm font-semibold text-gray-600">Subject:</p>
+                        <input id="email-subject" type="text" class="w-full p-1 border-0 focus:ring-0" readonly>
+                    </div>
+                    <div class="bg-white p-2 border rounded mt-2">
+                         <p class="text-sm font-semibold text-gray-600">Body:</p>
+                        <textarea id="email-body" class="w-full p-1 border-0 focus:ring-0" rows="8" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+            <!-- NEW FEATURE END -->
+        </div>
+
+        <!-- Admin Dashboard View -->
+        <div id="admin-dashboard-view" class="hidden">
+             <button class="back-to-menu-btn mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Menu</button>
+            <h2 class="text-3xl font-bold mb-4 text-center">👑 Admin Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button data-action="admin-users" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Manage Users</h3>
+                    <p class="text-gray-600">View all users and assign scenarios to them.</p>
+                </button>
+                <button data-action="admin-sessions" class="card bg-white p-6 rounded-lg cursor-pointer text-left">
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Audit Sessions</h3>
+                    <p class="text-gray-600">Review and manually edit feedback for all completed user sessions.</p>
+                </button>
+            </div>
+        </div>
+
+        <div id="admin-user-list-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+             <button id="back-to-admin-dash-btn" class="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Admin</button>
+             <h2 class="text-3xl font-bold mb-4 text-center">Manage Users</h2>
+             <div id="admin-user-list-container" class="space-y-2"></div>
+        </div>
+        
+        <div id="admin-session-list-view" class="hidden bg-white p-8 rounded-2xl shadow-lg">
+            <button id="back-to-admin-dash-btn2" class="mb-4 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">← Back to Admin</button>
+            <h2 class="text-3xl font-bold mb-4 text-center">Audit User Sessions</h2>
+            <div id="admin-session-list-container" class="space-y-4"></div>
+        </div>
+
+        <div id="assign-scenario-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"></div>
+
+    </div>
+
+    <script type="module">
+        const { createClient } = supabase;
+        const supabaseUrl = 'https://camonkvcskqeemsfsjea.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhbW9ua3Zjc2txZWVtc2ZzamVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxNTg1MTAsImV4cCI6MjA3MTczNDUxMH0.McthjvqNtUHfGhm5zAwicGwkt1CcsbVWjh_mohAPPDE';
+        const db = createClient(supabaseUrl, supabaseKey);
+
+        let userId;
+        let isAdmin = false;
+
+        const defaultScenarios = [
+            { id: 'default-0', title: "Tempo Move Connection Issue", isDefault: true, description: "A customer is frustrated because their Tempo Move won't connect to their TV.", persona: "Customer: Mark, a new user who was excited to start his first class. He's now annoyed and feels like the product is too complicated.", dialogue_tree: [{ customer: "I've been trying for 30 minutes and my Tempo Move just won't show up on my TV! I'm about to miss my scheduled class. This is so frustrating." }, { customer: "I've tried restarting everything already. My iPhone is plugged into the Core, and the HDMI is in the TV. What else could it be?" }, { customer: "Okay, I checked and the TV is on the right HDMI input. It's working now! Thank you for walking me through that." }] },
+            { id: 'default-1', title: "30-Day Trial & Return Question", isDefault: true, description: "A customer is nearing the end of their 30-day trial and is considering a return.", persona: "Customer: Jessica, who likes the workouts but isn't sure if it's worth the price. She's anxious about getting stuck in a contract.", dialogue_tree: [{ customer: "Hi, my 30-day trial is ending soon. I like the Tempo, but I'm not sure I can commit. What's the process if I decide to return it? I'm worried about hidden fees." }, { customer: "So as long as I have the original box, there's no restocking fee? That's good to know. Can I pause my membership instead of canceling?" }, { customer: "A membership pause is a great option. I think I'll do that and decide in a month. Thanks for explaining everything so clearly." }] },
+            { id: 'default-2', title: "AI Form Feedback Complaint", isDefault: true, description: "A long-time user is upset because they feel the AI form feedback is inaccurate.", persona: "Customer: Alex, an experienced lifter who has been using Tempo for 6 months. They are starting to question the value of the AI technology.", dialogue_tree: [{ customer: "I have to say, I'm getting really disappointed with the form feedback. It keeps telling me my squat depth is wrong, but I know my form is solid. It's making me question the whole system." }, { customer: "I've already checked the lighting and made sure the area is clear. It feels like the AI just isn't as smart as it's supposed to be. Is there a way to recalibrate it?" }, { customer: "I didn't know you could submit a video for review. That's actually really helpful. I'll do that after my next workout. I appreciate you offering a real solution." }] }
+        ];
+        
+        let currentScenario = null;
+        let lastPlayedScenarioId = null;
+        let currentStep = 0;
+        let empathyScore = 50;
+        let sessionInteractions = [];
+
+        const views = {
+            auth: document.getElementById('auth-view'),
+            mainMenu: document.getElementById('main-menu'),
+            createScenario: document.getElementById('create-scenario-view'),
+            historyList: document.getElementById('history-list-view'),
+            historyDetail: document.getElementById('history-detail-view'),
+            simulator: document.getElementById('simulator'),
+            completion: document.getElementById('completion-screen'),
+            adminDashboard: document.getElementById('admin-dashboard-view'),
+            adminUserList: document.getElementById('admin-user-list-view'),
+            adminSessionList: document.getElementById('admin-session-list-view'),
+            assignedScenarios: document.getElementById('assigned-scenarios-view'),
+            empathyAssistant: document.getElementById('empathy-assistant-view'),
+            emailCrafter: document.getElementById('email-crafter-view'),
+            savedEmails: document.getElementById('saved-emails-view'),
+        };
+
+        function showView(viewName) {
+            Object.values(views).forEach(view => view && view.classList.add('hidden'));
+            if (views[viewName]) views[viewName].classList.remove('hidden');
+        }
+
+        async function getFromAI(prompt, schema = null) {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const modalLoading = document.getElementById('modal-loading');
+            const empathyHelpLoading = document.getElementById('empathy-help-loading');
+            const emailCraftLoading = document.getElementById('email-craft-loading');
+            
+            if(loadingIndicator) loadingIndicator.classList.remove('hidden');
+            if (modalLoading) modalLoading.classList.remove('hidden');
+            if (empathyHelpLoading) empathyHelpLoading.classList.remove('hidden');
+            if (emailCraftLoading) emailCraftLoading.classList.remove('hidden');
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+            if (schema) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: schema
+                };
+            }
+            
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    console.error("API Error Response:", errorBody);
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                    const rawJson = result.candidates[0].content.parts[0].text;
+                    return JSON.parse(rawJson.replace(/```json/g, '').replace(/```/g, '').trim());
+                } else {
+                     console.error("Invalid API response structure:", result);
+                     if (result.promptFeedback) {
+                         console.error("Prompt Feedback:", result.promptFeedback);
+                     }
+                    return null;
+                }
+            } catch (error) {
+                console.error("Error with AI call:", error);
+                return null;
+            } finally {
+                if(loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (modalLoading) modalLoading.classList.add('hidden');
+                if (empathyHelpLoading) empathyHelpLoading.classList.add('hidden');
+                if (emailCraftLoading) emailCraftLoading.classList.add('hidden');
+            }
+        }
+
+        // --- TTS Functions ---
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+            const dataSize = pcmData.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++, offset += 2) {
+                view.setInt16(offset, pcmData[i], true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+        
+        async function getAudioFromAI(text, persona) {
+            const audioBtn = document.getElementById('play-audio-btn');
+            const audioLoader = document.getElementById('audio-loader');
+            audioBtn.classList.add('hidden');
+            audioLoader.classList.remove('hidden');
+
+            const emotions = ["frustrated", "annoyed", "anxious", "confused", "excited", "happy", "disappointed", "upset"];
+            let foundEmotion = "neutral";
+            for (const emotion of emotions) {
+                if (persona.toLowerCase().includes(emotion)) {
+                    foundEmotion = emotion;
+                    break;
+                }
+            }
+            
+            const prompt = `Say in a ${foundEmotion} tone: ${text}`;
+            
+            const payload = {
+                model: "gemini-2.5-flash-preview-tts",
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                }
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    if (!sampleRateMatch) throw new Error("Could not parse sample rate from mime type.");
+                    
+                    const sampleRate = parseInt(sampleRateMatch[1], 10);
+                    const pcmDataBuffer = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmDataBuffer);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    new Audio(audioUrl).play();
+                } else {
+                    console.error("Audio data not found in response", result);
+                }
+
+            } catch (error) {
+                console.error("Error generating or playing audio:", error);
+            } finally {
+                audioLoader.classList.add('hidden');
+                audioBtn.classList.remove('hidden');
+            }
+        }
+
+
+        function saveSessionState() {
+            if (!currentScenario) return;
+            const state = { 
+                currentScenario, 
+                currentStep, 
+                empathyScore, 
+                sessionInteractions,
+                responseText: document.getElementById('user-response').value 
+            };
+            sessionStorage.setItem('inProgressSession', JSON.stringify(state));
+        }
+
+        function clearSessionState() {
+            sessionStorage.removeItem('inProgressSession');
+            currentScenario = null;
+        }
+
+        function loadSessionState() {
+            const savedStateJSON = sessionStorage.getItem('inProgressSession');
+            if (savedStateJSON) {
+                try {
+                    const savedState = JSON.parse(savedStateJSON);
+                    currentScenario = savedState.currentScenario;
+                    currentStep = savedState.currentStep;
+                    empathyScore = savedState.empathyScore;
+                    sessionInteractions = savedState.sessionInteractions;
+                    showView('simulator');
+                    loadStep();
+                    document.getElementById('user-response').value = savedState.responseText || '';
+                    return true;
+                } catch (e) {
+                    console.error("Failed to parse saved session state:", e);
+                    clearSessionState();
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        async function getAllScenarios() {
+            let scenarios = [...defaultScenarios];
+            const { data, error } = await db.from('scenarios').select();
+            if (error) {
+                console.error("Could not load user-created scenarios:", error.message);
+            } else {
+                scenarios = scenarios.concat(data);
+            }
+            return scenarios;
+        }
+
+        async function startRandomScenario() {
+            showView('simulator');
+            document.getElementById('scenario-title').textContent = "Finding a scenario...";
+            document.getElementById('customer-persona').textContent = "";
+            document.getElementById('customer-dialogue').innerHTML = '<div class="loader mx-auto"></div>';
+            document.getElementById('response-area').classList.add('hidden');
+            
+            const scenarios = await getAllScenarios();
+            let availableScenarios = scenarios.filter(s => s.id !== lastPlayedScenarioId);
+            if (availableScenarios.length === 0) availableScenarios = scenarios;
+            if (availableScenarios.length > 0) {
+                const randomIndex = Math.floor(Math.random() * availableScenarios.length);
+                const chosenScenario = availableScenarios[randomIndex];
+                lastPlayedScenarioId = chosenScenario.id;
+                startScenario(chosenScenario);
+            } else {
+                document.getElementById('scenario-title').textContent = "Error";
+                document.getElementById('customer-dialogue').textContent = "No scenarios found. Please create one first.";
+            }
+        }
+
+        function startScenario(scenarioData) {
+            currentScenario = scenarioData;
+            currentStep = 0;
+            empathyScore = 50;
+            sessionInteractions = [];
+            showView('simulator');
+            loadStep();
+            saveSessionState();
+        }
+
+        function loadStep() {
+            const feedbackContainer = document.getElementById('feedback-container');
+            const suggestionsContainer = document.getElementById('suggestions-container');
+            const toneAnalysisContainer = document.getElementById('tone-analysis-container');
+            const nextBtn = document.getElementById('next-btn');
+            const responseArea = document.getElementById('response-area');
+            const userResponse = document.getElementById('user-response');
+
+            feedbackContainer.classList.add('hidden');
+            suggestionsContainer.classList.add('hidden');
+            toneAnalysisContainer.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            responseArea.classList.remove('hidden');
+            userResponse.value = '';
+            
+            const stepData = currentScenario.dialogue_tree[currentStep];
+            if (!stepData) {
+                showCompletionScreen();
+                return;
+            }
+
+            document.getElementById('scenario-title').textContent = currentScenario.title;
+            document.getElementById('customer-persona').textContent = currentScenario.persona;
+            document.getElementById('customer-dialogue').textContent = stepData.customer;
+            
+            document.getElementById('play-audio-btn').onclick = () => getAudioFromAI(stepData.customer, currentScenario.persona);
+
+            updateEmpathyMeter();
+        }
+
+        async function handleSubmitResponse() {
+            const userResponse = document.getElementById('user-response');
+            const responseText = userResponse.value.trim();
+            if (!responseText) return;
+            document.getElementById('response-area').classList.add('hidden');
+            const feedbackPrompt = `You are an expert customer service training coach for Tempo.fit. Evaluate a user's response. **Scenario:** ${currentScenario.title} | **Customer's Statement:** "${currentScenario.dialogue_tree[currentStep].customer}" | **User's Response:** "${responseText}". Provide your evaluation as a JSON object: { "score": <integer 0-100>, "feedback": "<concise, constructive feedback>" }`;
+            const feedbackSchema = { type: "OBJECT", properties: { "score": { "type": "INTEGER" }, "feedback": { "type": "STRING" } }, required: ["score", "feedback"] };
+            const bestAnswerPrompt = `You are a customer service expert for Tempo.fit. **Scenario:** ${currentScenario.title} | **Customer's Statement:** "${currentScenario.dialogue_tree[currentStep].customer}". Provide three distinct, ideal, and empathetic responses a top-tier agent would give. Return a JSON object: { "ideal_responses": ["<response 1>", "<response 2>", "<response 3>"] }`;
+            const bestAnswerSchema = { type: "OBJECT", properties: { "ideal_responses": { "type": "ARRAY", "items": { "type": "STRING" } } }, required: ["ideal_responses"] };
+            const [feedbackResult, bestAnswerResult] = await Promise.all([ getFromAI(feedbackPrompt, feedbackSchema), getFromAI(bestAnswerPrompt, bestAnswerSchema) ]);
+            handleAIResponse(responseText, feedbackResult, bestAnswerResult);
+        }
+
+        function handleAIResponse(userResp, feedback, bestAnswers) {
+            const score = feedback?.score ?? 50;
+            const feedbackText = feedback?.feedback ?? "Sorry, there was an error getting feedback.";
+            const idealResponses = bestAnswers?.ideal_responses ?? ["Could not generate ideal responses."];
+            sessionInteractions.push({ customerSays: currentScenario.dialogue_tree[currentStep].customer, userResponse: userResp, aiFeedback: feedbackText, aiScore: score, idealResponses: idealResponses });
+            let feedbackHTML = `<div class="feedback-card border border-gray-200 rounded-lg p-4"><h4 class="font-bold text-lg mb-2">AI Coach Feedback:</h4><p class="text-gray-700">${feedbackText}</p><p class="font-bold text-right mt-2">Score: ${score}/100</p></div>`;
+            if (score < 100) {
+                feedbackHTML += `<div class="mt-4 p-4 bg-green-50 rounded-lg"><strong class="text-green-700">Here are a few examples of highly empathetic responses:</strong><ul class="list-disc list-inside mt-2 text-sm text-green-800">${idealResponses.map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+            }
+            const feedbackContainer = document.getElementById('feedback-container');
+            feedbackContainer.innerHTML = feedbackHTML;
+            feedbackContainer.classList.remove('hidden');
+            const scoreChange = (score - 50) / 2;
+            empathyScore = Math.max(0, Math.min(100, empathyScore + scoreChange));
+            updateEmpathyMeter();
+            currentStep++;
+            saveSessionState();
+            const nextBtn = document.getElementById('next-btn');
+            if (currentScenario.title.includes("AI Quick-Fire")) {
+                // It's a single-step scenario, so we save it immediately.
+                saveCompletedSession(currentScenario, empathyScore, sessionInteractions);
+                
+                nextBtn.textContent = "Next AI Problem";
+                nextBtn.onclick = startAIQuickFireRound;
+                nextBtn.classList.remove('hidden');
+            } else if (currentScenario.dialogue_tree[currentStep]) {
+                nextBtn.textContent = "Next Step";
+                nextBtn.onclick = loadStep;
+                nextBtn.classList.remove('hidden');
+            } else {
+                setTimeout(showCompletionScreen, 1500);
+            }
+        }
+
+        function updateEmpathyMeter() {
+            document.getElementById('empathy-meter').style.width = `${empathyScore}%`;
+        }
+
+        async function showCompletionScreen() {
+            // Capture the state before clearing it
+            const scenarioToSave = currentScenario;
+            const scoreToSave = empathyScore;
+            const interactionsToSave = [...sessionInteractions];
+
+            clearSessionState();
+            document.getElementById('email-draft-container').classList.add('hidden');
+            document.getElementById('email-draft-content').classList.add('hidden');
+            document.getElementById('email-draft-loading').classList.add('hidden');
+            const finalFeedback = document.getElementById('final-feedback');
+            if (empathyScore > 75) finalFeedback.textContent = "Outstanding! You consistently demonstrated strong empathy and effective communication.";
+            else if (empathyScore > 40) finalFeedback.textContent = "Good work. You navigated the conversation well. Continue to focus on consistently validating feelings.";
+            else finalFeedback.textContent = "That was a challenging scenario. Remember to always start by acknowledging the customer's emotions. Give it another try!";
+            showView('completion');
+            await saveCompletedSession(scenarioToSave, scoreToSave, interactionsToSave);
+        }
+
+        async function saveCompletedSession(scenario, score, interactions) {
+            if (!userId || !scenario || interactions.length === 0) return;
+            const { error } = await db.from('sessions').insert({ 
+                user_id: userId, 
+                scenario_title: scenario.title, 
+                final_empathy_score: Math.round(score), 
+                interactions: interactions
+            });
+            if (error) console.error("Error saving session:", error.message);
+        }
+        
+        async function showHistoryList() {
+            showView('historyList');
+            const container = document.getElementById('history-list-container');
+            container.innerHTML = '<div class="loader mx-auto"></div>';
+            if (!userId) { container.innerHTML = '<p>Please log in to see your history.</p>'; return; }
+            
+            const { data, error } = await db.from('sessions').select('*').eq('user_id', userId).order('completed_at', { ascending: false });
+
+            if (error) {
+                console.error("Error fetching history:", error.message);
+                container.innerHTML = '<p class="text-red-500">Could not load history.</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            if (data.length === 0) { container.innerHTML = '<p class="text-center text-gray-500">You haven\'t completed any scenarios yet.</p>'; return; }
+            
+            data.forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'history-item bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md';
+                item.innerHTML = `<div class="flex justify-between items-center"><div><h4 class="font-bold">${session.scenario_title}</h4><p class="text-sm text-gray-500">Completed: ${new Date(session.completed_at).toLocaleDateString()}</p></div><div class="text-lg font-bold text-blue-600">Score: ${session.final_empathy_score}</div></div>`;
+                item.addEventListener('click', () => showHistoryDetail(session));
+                container.appendChild(item);
+            });
+        }
+
+        function showHistoryDetail(sessionData, fromAdmin = false) {
+            showView('historyDetail');
+            document.getElementById('history-detail-title').textContent = sessionData.scenario_title;
+            document.getElementById('history-detail-score').textContent = sessionData.final_empathy_score;
+            document.getElementById('history-summary-container').classList.add('hidden');
+            document.getElementById('history-summary-container').innerHTML = '';
+            document.getElementById('back-to-history-list-btn').onclick = fromAdmin ? showAdminSessionList : showHistoryList;
+            
+            const container = document.getElementById('history-detail-interactions');
+            container.innerHTML = '';
+            sessionData.interactions.forEach((interaction, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'border-t pt-4';
+                let adminControls = fromAdmin ? `<button data-session-id="${sessionData.id}" data-interaction-index="${index}" class="edit-feedback-btn text-sm text-blue-500">Edit</button>` : '';
+                stepDiv.innerHTML = `
+                    <p class="mb-2"><strong class="text-gray-500">Customer said:</strong> "${interaction.customerSays}"</p>
+                    <p class="mb-2 p-2 bg-blue-50 rounded"><strong class="text-blue-700">Your response:</strong> "${interaction.userResponse}"</p>
+                    <div class="mb-2 p-2 bg-gray-50 rounded">
+                        <div class="flex justify-between items-start">
+                           <p id="feedback-text-${sessionData.id}-${index}"><strong class="text-gray-700">AI Feedback (Score: ${interaction.aiScore}):</strong> ${interaction.aiFeedback}</p>
+                           ${adminControls}
+                        </div>
+                    </div>
+                    <div class="p-2 bg-green-50 rounded"><strong class="text-green-700">Ideal Responses:</strong><ul class="list-disc list-inside mt-1 text-sm text-green-800">${interaction.idealResponses.map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+                container.appendChild(stepDiv);
+            });
+            document.getElementById('get-summary-btn').onclick = () => getHistorySummaryFromAI(sessionData);
+
+             if(fromAdmin) {
+                  container.querySelectorAll('.edit-feedback-btn').forEach(btn => {
+                       btn.addEventListener('click', (e) => {
+                           const index = e.target.dataset.interactionIndex;
+                           const sessionId = e.target.dataset.sessionId;
+                           const feedbackP = document.getElementById(`feedback-text-${sessionId}-${index}`);
+                           const currentFeedback = sessionData.interactions[index].aiFeedback;
+                           feedbackP.innerHTML = `<textarea class="w-full border rounded p-1">${currentFeedback}</textarea><button data-save-index="${index}" data-session-id="${sessionId}" class="save-feedback-btn text-sm bg-green-500 text-white p-1 rounded mt-1">Save</button>`;
+                           
+                           feedbackP.querySelector('.save-feedback-btn').addEventListener('click', async (saveEvent) => {
+                               const newFeedback = saveEvent.target.previousElementSibling.value;
+                               sessionData.interactions[index].aiFeedback = newFeedback;
+                               
+                               const { error } = await db.from('sessions').update({ interactions: sessionData.interactions }).eq('id', sessionId);
+
+                               if (error) {
+                                   console.error("Failed to save feedback:", error.message);
+                                   feedbackP.innerHTML = `<strong class="text-gray-700">AI Feedback (Score: ${sessionData.interactions[index].aiScore}):</strong> ${currentFeedback} <span class="text-red-500">(Save failed)</span>`;
+                               } else {
+                                   feedbackP.innerHTML = `<strong class="text-gray-700">AI Feedback (Score: ${sessionData.interactions[index].aiScore}):</strong> ${newFeedback}`;
+                               }
+                           });
+                       });
+                   });
+             }
+        }
+        
+        async function getToneAnalysisFromAI() {
+            const userResponse = document.getElementById('user-response');
+            const toneAnalysisContainer = document.getElementById('tone-analysis-container');
+            const responseText = userResponse.value.trim();
+            if (!responseText) {
+                userResponse.classList.add('border-red-500', 'placeholder-red-500');
+                userResponse.placeholder = "Please write a response before analyzing the tone.";
+                setTimeout(() => {
+                    userResponse.classList.remove('border-red-500', 'placeholder-red-500');
+                    userResponse.placeholder = "Type your empathetic response here...";
+                }, 3000);
+                return;
+            }
+            const prompt = `As a customer service coach, analyze the tone of this agent's response. Customer says: "${currentScenario.dialogue_tree[currentStep].customer}". Agent's draft response: "${responseText}". Provide a one-sentence tone analysis and a one-sentence suggestion for improvement if needed. Return a JSON object: { "analysis": "<string>", "suggestion": "<string>" }`;
+            const schema = { type: "OBJECT", properties: { "analysis": { "type": "STRING" }, "suggestion": { "type": "STRING" } }, required: ["analysis", "suggestion"] };
+            const result = await getFromAI(prompt, schema);
+            toneAnalysisContainer.innerHTML = result ? `<div class="p-2 bg-indigo-50 border border-indigo-200 rounded-md text-sm"><p><strong>Tone Analysis:</strong> ${result.analysis}</p><p><strong>Suggestion:</strong> ${result.suggestion}</p></div>` : `<p class="text-sm text-red-500">Could not analyze tone.</p>`;
+            toneAnalysisContainer.classList.remove('hidden');
+        }
+
+        async function getSuggestionsFromAI() {
+            const userResponse = document.getElementById('user-response');
+            const suggestionsContainer = document.getElementById('suggestions-container');
+            const responseText = userResponse.value.trim();
+            if (!responseText) {
+                userResponse.classList.add('border-red-500', 'placeholder-red-500');
+                userResponse.placeholder = "Please write a response to get suggestions.";
+                setTimeout(() => {
+                    userResponse.classList.remove('border-red-500', 'placeholder-red-500');
+                    userResponse.placeholder = "Type your empathetic response here...";
+                }, 3000);
+                return;
+            }
+            const prompt = `You are a customer service expert for Tempo.fit. The customer said: "${currentScenario.dialogue_tree[currentStep].customer}". The agent has drafted this response: "${responseText}". Provide three distinct, alternative empathetic phrases or opening lines the agent could use. Return a JSON object: { "suggestions": ["<suggestion 1>", "<suggestion 2>", "<suggestion 3>"] }`;
+            const schema = { type: "OBJECT", properties: { "suggestions": { "type": "ARRAY", "items": { "type": "STRING" } } }, required: ["suggestions"] };
+            const result = await getFromAI(prompt, schema);
+            if (result && result.suggestions) {
+                 suggestionsContainer.innerHTML = `<div class="p-2 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                     <strong>Suggestions:</strong>
+                     <ul class="list-disc list-inside mt-1">
+                         ${result.suggestions.map(s => `<li>${s}</li>`).join('')}
+                     </ul>
+                 </div>`;
+            } else {
+                suggestionsContainer.innerHTML = `<p class="text-sm text-red-500">Could not get suggestions.</p>`;
+            }
+            suggestionsContainer.classList.remove('hidden');
+        }
+
+        async function getHistorySummaryFromAI(sessionData) {
+            const summaryContainer = document.getElementById('history-summary-container');
+            summaryContainer.innerHTML = '<div class="loader mx-auto"></div>';
+            summaryContainer.classList.remove('hidden');
+            const interactionsText = sessionData.interactions.map(i => `Customer: "${i.customerSays}"\nYour Response: "${i.userResponse}" (Score: ${i.aiScore})\n`).join('\n');
+            const prompt = `As a customer service coach, review this entire conversation from a Tempo.fit support simulation. Scenario: ${sessionData.scenario_title}. Conversation History: ${interactionsText}. Provide a concise summary of the agent's performance and one actionable tip for improvement. Return a JSON object: { "summary": "<string>", "tip": "<string>" }`;
+            const schema = { type: "OBJECT", properties: { "summary": { "type": "STRING" }, "tip": { "type": "STRING" } }, required: ["summary", "tip"] };
+            const result = await getFromAI(prompt, schema);
+            summaryContainer.innerHTML = result ? `<p><strong>Summary:</strong> ${result.summary}</p><p><strong>Actionable Tip:</strong> ${result.tip}</p>` : `<p class="text-red-500">Could not generate a summary.</p>`;
+        }
+
+        async function getEmpathyHelpFromAI() {
+            const situationDescription = document.getElementById('situation-description').value.trim();
+            const responseContainer = document.getElementById('empathy-response-container');
+            if (!situationDescription) {
+                responseContainer.innerHTML = `<p class="text-red-500">Please describe the situation first.</p>`;
+                responseContainer.classList.remove('hidden');
+                return;
+            }
+            responseContainer.classList.add('hidden');
+
+            const prompt = `You are an expert empathy coach for customer service agents at Tempo.fit. An agent is facing a tough situation: "${situationDescription}".
+
+            Your task is to provide a detailed, intelligence-powered empathy report to help the agent handle this with maximum emotional intelligence. Do not provide solutions.
+
+            Analyze the situation and return a JSON object with the following structure:
+            1.  "key_emotion": A single word or short phrase identifying the customer's core emotion (e.g., "Frustration", "Feeling unheard", "Disappointment").
+            2.  "empathetic_phrases": An array of three distinct, professional, and highly empathetic phrases the agent can use throughout the conversation to validate the customer's feelings.
+            3.  "assurance_statement": A single, powerful statement that validates their feeling and assures them you're there to help, without promising a specific outcome.
+            4.  "coach_tip": A brief, actionable tip for the agent on the mindset they should adopt for this specific interaction.`;
+            
+            const schema = { 
+                type: "OBJECT", 
+                properties: { 
+                    "key_emotion": { "type": "STRING" }, 
+                    "empathetic_phrases": { "type": "ARRAY", "items": { "type": "STRING" } },
+                    "assurance_statement": { "type": "STRING" },
+                    "coach_tip": { "type": "STRING" }
+                }, 
+                required: ["key_emotion", "empathetic_phrases", "assurance_statement", "coach_tip"] 
+            };
+            
+            const result = await getFromAI(prompt, schema);
+
+            if (result) {
+                responseContainer.innerHTML = `
+                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <h3 class="text-lg font-bold text-purple-800 mb-3">AI Empathy Coach Report</h3>
+
+                        <div class="mb-4">
+                            <p class="font-semibold text-gray-700">Core Customer Emotion:</p>
+                            <p class="text-purple-700 italic">${result.key_emotion}</p>
+                        </div>
+
+                        <div class="mb-4">
+                            <p class="font-semibold text-gray-700">Ways to Show Empathy:</p>
+                            <ul class="list-disc list-inside text-purple-700 space-y-1 mt-1">
+                                ${result.empathetic_phrases.map(line => `<li>${line}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="mb-4">
+                            <p class="font-semibold text-gray-700">Core Assurance Statement:</p>
+                            <p class="text-purple-700">"${result.assurance_statement}"</p>
+                        </div>
+
+                        <div class="p-3 bg-indigo-100 rounded">
+                            <p class="font-semibold text-indigo-800">💡 Coach's Tip for You:</p>
+                            <p class="text-indigo-700">${result.coach_tip}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                 responseContainer.innerHTML = `<p class="text-red-500">Sorry, I couldn't generate a response. Please try rephrasing your situation.</p>`;
+            }
+            responseContainer.classList.remove('hidden');
+        }
+
+        async function startAIQuickFireRound() {
+            showView('simulator');
+            document.getElementById('scenario-title').textContent = "AI is thinking of a problem...";
+            document.getElementById('customer-persona').textContent = "";
+            document.getElementById('customer-dialogue').innerHTML = '<div class="loader mx-auto"></div>';
+            document.getElementById('response-area').classList.add('hidden');
+
+            const prompt = `You are a Tempo.fit customer with a problem. In one sentence, state your problem clearly and with some emotion (e.g., frustration, confusion, excitement). Also, provide a brief one-sentence persona for yourself. Return a JSON object with keys "persona" and "customer_problem".`;
+            const schema = { type: "OBJECT", properties: { "persona": { "type": "STRING" }, "customer_problem": { "type": "STRING" } }, required: ["persona", "customer_problem"] };
+            const result = await getFromAI(prompt, schema);
+
+            if (result) {
+                const quickFireScenario = {
+                    id: 'ai-quick-fire-' + Date.now(),
+                    title: "⚡ AI Quick-Fire Round",
+                    persona: result.persona,
+                    dialogue_tree: [{ customer: result.customer_problem }]
+                };
+                startScenario(quickFireScenario);
+            } else {
+                document.getElementById('scenario-title').textContent = "Error";
+                document.getElementById('customer-dialogue').textContent = "Could not generate an AI problem. Please try again.";
+            }
+        }
+        
+        async function showAssignedScenarios() {
+            showView('assignedScenarios');
+            const container = document.getElementById('assigned-scenarios-container');
+            container.innerHTML = '<div class="loader mx-auto"></div>';
+            if (!userId) { container.innerHTML = '<p>Could not identify user.</p>'; return; }
+            
+            const { data, error } = await db.from('assigned_scenarios').select('scenario_data').eq('user_id', userId);
+            
+            if (error) { console.error(error); container.innerHTML = '<p>Could not load assigned scenarios.</p>'; return; }
+
+            container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500">You have no assigned scenarios.</p>';
+                return;
+            }
+            data.forEach(item => {
+                const scenario = item.scenario_data;
+                const card = document.createElement('div');
+                card.className = 'card bg-white p-6 rounded-lg cursor-pointer';
+                card.innerHTML = `<h3 class="text-xl font-bold mb-2 text-gray-800">${scenario.title}</h3><p class="text-gray-600">${scenario.description}</p>`;
+                card.addEventListener('click', () => startScenario(scenario));
+                container.appendChild(card);
+            });
+        }
+
+        async function showAdminUserList() {
+            showView('adminUserList');
+            const container = document.getElementById('admin-user-list-container');
+            container.innerHTML = '<div class="loader mx-auto"></div>';
+            
+            const { data, error } = await db.from('users').select();
+
+            if (error) { console.error(error); container.innerHTML = '<p>Could not load users.</p>'; return; }
+
+            container.innerHTML = '';
+            data.forEach(user => {
+                if (user.email === 'admin@tempo.fit') return;
+                const item = document.createElement('div');
+                item.className = 'bg-white p-3 rounded-lg shadow-sm flex justify-between items-center';
+                item.innerHTML = `<p>${user.email || user.id}</p><button data-uid="${user.id}" class="assign-scenario-btn bg-blue-500 text-white px-2 py-1 rounded text-sm">Assign Scenario</button>`;
+                container.appendChild(item);
+            });
+            container.querySelectorAll('.assign-scenario-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => openAssignScenarioModal(e.target.dataset.uid));
+            });
+        }
+
+        async function openAssignScenarioModal(targetUserId) {
+            const modal = document.getElementById('assign-scenario-modal');
+            modal.classList.remove('hidden');
+            
+            modal.innerHTML = `
+                <div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                    <h3 class="text-lg font-medium">Create and Assign New Scenario</h3>
+                    <p class="text-sm text-gray-500 mb-4">For User: ${targetUserId.substring(0,8)}...</p>
+                    <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                        <div><label class="block text-sm">Title</label><input id="assign-title" type="text" class="w-full p-2 border rounded"></div>
+                        <div><label class="block text-sm">Description</label><input id="assign-description" type="text" class="w-full p-2 border rounded"></div>
+                        <div><label class="block text-sm">Persona</label><textarea id="assign-persona" class="w-full p-2 border rounded" rows="2"></textarea></div>
+                        <div><label class="block text-sm">Dialogue Step 1</label><textarea class="w-full p-2 border rounded assign-dialogue-step" rows="2"></textarea></div>
+                        <div><label class="block text-sm">Dialogue Step 2</label><textarea class="w-full p-2 border rounded assign-dialogue-step" rows="2"></textarea></div>
+                        <div><label class="block text-sm">Dialogue Step 3</label><textarea class="w-full p-2 border rounded assign-dialogue-step" rows="2"></textarea></div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button onclick="document.getElementById('assign-scenario-modal').classList.add('hidden')" class="bg-gray-200 p-2 rounded">Cancel</button>
+                        <button id="save-and-assign-btn" class="bg-blue-500 text-white p-2 rounded">Save and Assign</button>
+                    </div>
+                </div>`;
+
+            document.getElementById('save-and-assign-btn').addEventListener('click', async (e) => {
+                const button = e.target;
+                button.textContent = 'Saving...';
+                button.disabled = true;
+
+                const newScenarioData = {
+                    title: document.getElementById('assign-title').value,
+                    description: document.getElementById('assign-description').value,
+                    persona: document.getElementById('assign-persona').value,
+                    dialogue_tree: Array.from(document.querySelectorAll('.assign-dialogue-step')).map(textarea => ({ customer: textarea.value })),
+                    author_id: userId
+                };
+
+                const { data: newScenario, error: insertError } = await db.from('scenarios').insert(newScenarioData).select().single();
+
+                if (insertError) {
+                    console.error("Error saving new scenario:", insertError.message);
+                    button.textContent = 'Save Failed!';
+                    setTimeout(() => { button.textContent = 'Save and Assign'; button.disabled = false; }, 2000);
+                    return;
+                }
+
+                const { error: assignError } = await db.from('assigned_scenarios').insert({
+                    user_id: targetUserId,
+                    scenario_id: newScenario.id,
+                    scenario_data: newScenario
+                });
+
+                if (assignError) {
+                    console.error("Error assigning scenario:", assignError.message);
+                    button.textContent = 'Assign Failed!';
+                    setTimeout(() => { button.textContent = 'Save and Assign'; button.disabled = false; }, 2000);
+                } else {
+                    button.textContent = 'Assigned!';
+                    setTimeout(() => {
+                        document.getElementById('assign-scenario-modal').classList.add('hidden');
+                    }, 1500);
+                }
+            });
+        }
+        
+        async function showAdminSessionList() {
+            showView('adminSessionList');
+            const container = document.getElementById('admin-session-list-container');
+            container.innerHTML = '<div class="loader mx-auto"></div>';
+            
+            const { data, error } = await db.from('sessions').select(`
+                *,
+                users (email)
+            `).order('completed_at', { ascending: false });
+            
+            if (error) { 
+                console.error(error); 
+                container.innerHTML = `<p class="text-red-500">Could not load sessions. Error: ${error.message}</p>`; 
+                return; 
+            }
+
+            container.innerHTML = '';
+            if (data.length === 0) { 
+                container.innerHTML = '<p class="text-center">No user sessions found.</p>'; 
+                return; 
+            }
+            
+            data.forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'history-item bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md';
+                item.innerHTML = `<div class="flex justify-between items-center"><div><h4 class="font-bold">${session.scenario_title}</h4><p class="text-sm text-gray-500">User: ${session.users ? session.users.email : session.user_id.substring(0,8)+'...'} | Completed: ${new Date(session.completed_at).toLocaleDateString()}</p></div><div class="text-lg font-bold text-blue-600">Score: ${session.final_empathy_score}</div></div>`;
+                item.addEventListener('click', () => showHistoryDetail(session, true));
+                container.appendChild(item);
+            });
+        }
+        
+        async function craftFollowUpEmailFromTool() {
+            const customerEmail = document.getElementById('customer-email-input').value.trim();
+            const resolution = document.getElementById('resolution-input').value.trim();
+            const alternatives = document.getElementById('alternatives-input').value.trim();
+            const outputContainer = document.getElementById('crafted-email-container');
+
+            if (!customerEmail || !resolution) {
+                alert("Please provide the original customer email and the resolution details.");
+                return;
+            }
+            
+            outputContainer.classList.add('hidden');
+
+            const prompt = `You are a professional and empathetic customer support agent for Tempo.fit named Alex. Craft a follow-up email based on the following information.
+
+            **Original Customer Email (for context on their tone and problem):**
+            "${customerEmail}"
+
+            **Your Goal / Key Information to Convey:**
+            "${resolution}"
+
+            **Alternative Solutions or Extra Details to Include (if any):**
+            "${alternatives}"
+
+            **Instructions for the email body:**
+            1.  **Structure:** Organize the email into clear paragraphs with proper spacing. It should not be one block of text.
+            2.  **Tone:** Analyze the customer's email to determine their tone. If they are frustrated, be extra empathetic. If they are asking a simple question, be welcoming and clear.
+            3.  **Standard Opening:** Start the email with "Hi [Customer Name]," (extract their name from their email if possible, otherwise use "Hi there,"), followed by a new paragraph: "Thank you for reaching out to Tempo Support. My name is Alex."
+            4.  **Content:** Address their issue directly, provide the resolution, and include any alternatives clearly.
+            5.  **Standard Closing:** End the email with the following lines, each on a new line: "Please let us know if you have any further questions; we would be happy to assist you.", "Thank you for contacting us!", "Tempo Support Team".
+
+            Return the email as a JSON object with "subject" and "body" keys. The body should be plain text, well-formatted with line breaks for paragraphs.`;
+
+            const schema = { 
+                type: "OBJECT", 
+                properties: { 
+                    "subject": { "type": "STRING" }, 
+                    "body": { "type": "STRING" } 
+                }, 
+                required: ["subject", "body"] 
+            };
+
+            const result = await getFromAI(prompt, schema);
+            
+            if (result && result.subject && result.body) {
+                document.getElementById('crafted-email-subject').value = result.subject;
+                document.getElementById('crafted-email-body').value = result.body;
+                outputContainer.classList.remove('hidden');
+            } else {
+                alert("Sorry, the AI could not craft an email. Please try again.");
+            }
+        }
+
+        async function saveCraftedEmail() {
+            const subject = document.getElementById('crafted-email-subject').value;
+            const body = document.getElementById('crafted-email-body').value;
+            const category = document.getElementById('email-category-input').value.trim();
+            const saveBtn = document.getElementById('save-email-btn');
+
+            if (!userId || !subject || !body) return;
+
+            const { error } = await db.from('saved_emails').insert({
+                user_id: userId,
+                subject: subject,
+                body: body,
+                category: category || null // Save as null if empty
+            });
+
+            if (error) {
+                console.error("Error saving email:", error.message);
+                saveBtn.textContent = "Save Failed";
+            } else {
+                saveBtn.textContent = "Saved!";
+            }
+
+            setTimeout(() => {
+                saveBtn.textContent = "Save to My Emails";
+            }, 2000);
+        }
+
+        async function showSavedEmails() {
+            showView('savedEmails');
+            const container = document.getElementById('saved-emails-container');
+            const filterDropdown = document.getElementById('category-filter');
+            container.innerHTML = '<div class="loader mx-auto"></div>';
+            if (!userId) { container.innerHTML = '<p>Please log in to see your saved emails.</p>'; return; }
+            
+            const { data: emails, error } = await db.from('saved_emails').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("Error fetching saved emails:", error.message);
+                container.innerHTML = '<p class="text-red-500">Could not load your saved emails.</p>';
+                return;
+            }
+            
+            // Populate category filter
+            const categories = [...new Set(emails.map(e => e.category).filter(Boolean))];
+            filterDropdown.innerHTML = '<option value="all">All Categories</option>';
+            categories.sort().forEach(cat => {
+                filterDropdown.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+            filterDropdown.onchange = () => renderSavedEmails(emails, filterDropdown.value);
+
+            renderSavedEmails(emails, 'all');
+        }
+
+        function renderSavedEmails(emails, categoryFilter) {
+            const container = document.getElementById('saved-emails-container');
+            container.innerHTML = '';
+
+            const filteredEmails = categoryFilter === 'all' 
+                ? emails 
+                : emails.filter(e => e.category === categoryFilter);
+
+            if (filteredEmails.length === 0) { 
+                container.innerHTML = '<p class="text-center text-gray-500">You haven\'t saved any emails in this category yet.</p>'; 
+                return; 
+            }
+            
+            filteredEmails.forEach(email => {
+                const item = document.createElement('div');
+                item.className = 'history-item bg-white p-4 rounded-lg shadow-sm';
+                item.dataset.emailId = email.id;
+                
+                const categoryBadge = email.category ? `<span class="ml-2 text-xs font-semibold bg-teal-100 text-teal-800 px-2 py-1 rounded-full">${email.category}</span>` : '';
+
+                item.innerHTML = `
+                    <div id="view-${email.id}">
+                        <details>
+                            <summary class="font-bold cursor-pointer hover:text-teal-600 flex items-center">${email.subject}${categoryBadge}</summary>
+                            <div class="mt-4 p-4 bg-gray-50 border rounded-md whitespace-pre-wrap">${email.body}</div>
+                        </details>
+                        <div class="flex justify-end space-x-2 mt-2">
+                            <button class="edit-email-btn text-sm text-blue-600 hover:text-blue-800">Edit</button>
+                            <button class="delete-email-btn text-sm text-red-600 hover:text-red-800">Delete</button>
+                        </div>
+                    </div>
+                    <div id="edit-${email.id}" class="hidden space-y-2">
+                         <input type="text" value="${email.subject}" class="font-bold w-full p-2 border rounded-md" placeholder="Subject">
+                         <input type="text" value="${email.category || ''}" class="text-sm w-full p-2 border rounded-md" placeholder="Category">
+                         <textarea class="w-full p-2 border rounded-md" rows="8" placeholder="Email body">${email.body}</textarea>
+                         <div class="flex justify-end space-x-2 mt-2">
+                            <button class="cancel-edit-btn text-sm bg-gray-200 px-3 py-1 rounded-md">Cancel</button>
+                            <button class="save-changes-btn text-sm bg-green-500 text-white px-3 py-1 rounded-md">Save Changes</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+
+            // Add event listeners
+            container.querySelectorAll('.delete-email-btn').forEach(btn => btn.addEventListener('click', handleDeleteEmail));
+            container.querySelectorAll('.edit-email-btn').forEach(btn => btn.addEventListener('click', handleEditEmail));
+            container.querySelectorAll('.cancel-edit-btn').forEach(btn => btn.addEventListener('click', handleCancelEdit));
+            container.querySelectorAll('.save-changes-btn').forEach(btn => btn.addEventListener('click', handleSaveChanges));
+        }
+        
+        function handleEditEmail(e) {
+            const item = e.target.closest('[data-email-id]');
+            const id = item.dataset.emailId;
+            item.querySelector(`#view-${id}`).classList.add('hidden');
+            item.querySelector(`#edit-${id}`).classList.remove('hidden');
+        }
+
+        function handleCancelEdit(e) {
+            const item = e.target.closest('[data-email-id]');
+            const id = item.dataset.emailId;
+            item.querySelector(`#view-${id}`).classList.remove('hidden');
+            item.querySelector(`#edit-${id}`).classList.add('hidden');
+        }
+
+        async function handleSaveChanges(e) {
+            const button = e.target;
+            const item = button.closest('[data-email-id]');
+            const id = item.dataset.emailId;
+            const editContainer = item.querySelector(`#edit-${id}`);
+            
+            const newSubject = editContainer.children[0].value;
+            const newCategory = editContainer.children[1].value.trim();
+            const newBody = editContainer.children[2].value;
+
+            button.textContent = 'Saving...';
+            button.disabled = true;
+
+            const { error } = await db.from('saved_emails')
+                .update({ subject: newSubject, body: newBody, category: newCategory || null })
+                .eq('id', id);
+
+            if (error) {
+                console.error("Error updating email:", error.message);
+                alert("Could not save changes. Please try again.");
+                button.textContent = 'Save Changes';
+                button.disabled = false;
+            } else {
+                // Refresh the list to show changes
+                showSavedEmails();
+            }
+        }
+        
+        async function handleDeleteEmail(e) {
+            const button = e.target;
+            const item = button.closest('[data-email-id]');
+            const id = item.dataset.emailId;
+
+            // Using a simple text change instead of a modal to avoid complexity.
+            if (button.textContent !== 'Confirm Delete?') {
+                button.textContent = 'Confirm Delete?';
+                setTimeout(() => {
+                   if(button) button.textContent = 'Delete';
+                }, 3000);
+                return;
+            }
+
+            const { error } = await db.from('saved_emails').delete().eq('id', id);
+
+            if (error) {
+                console.error("Error deleting email:", error.message);
+                alert("Could not delete the email. Please try again.");
+            } else {
+                item.style.opacity = '0';
+                setTimeout(() => item.remove(), 300);
+            }
+        }
+
+        async function draftFollowUpEmail() {
+            const emailContainer = document.getElementById('email-draft-container');
+            const emailLoading = document.getElementById('email-draft-loading');
+            const emailContent = document.getElementById('email-draft-content');
+            
+            emailContainer.classList.remove('hidden');
+            emailContent.classList.add('hidden');
+            emailLoading.classList.remove('hidden');
+            emailLoading.classList.add('flex');
+            emailLoading.classList.remove('hidden');
+
+            const conversationHistory = sessionInteractions.map(interaction => 
+                `Customer: "${interaction.customerSays}"\nAgent: "${interaction.userResponse}"`
+            ).join('\n\n');
+
+            const prompt = `You are a professional and empathetic customer support agent for Tempo.fit named Alex. Based on the following scenario and conversation, write a concise follow-up email to the customer. The email should confirm the resolution and reinforce a positive relationship.
+            
+            **Scenario Title:** ${currentScenario.title}
+            **Customer Persona (for context on their tone and name):** ${currentScenario.persona}
+            
+            **Conversation History:**
+            ${conversationHistory}
+            
+            **Instructions for the email body:**
+            1.  **Structure:** Organize the email into clear, well-spaced paragraphs.
+            2.  **Tone:** The conversation ended positively, so the tone should be friendly and reassuring.
+            3.  **Standard Opening:** Start the email with "Hi [Customer Name]," (extract their name from the persona, e.g., "Hi Mark,"), followed by a new paragraph: "Thank you for reaching out to Tempo Support. My name is Alex."
+            4.  **Content:** Briefly recap the positive resolution and express happiness that the issue is solved.
+            5.  **Standard Closing:** End the email with the following lines, each on a new line: "Please let us know if you have any further questions; we would be happy to assist you.", "Thank you for contacting us!", "Tempo Support Team".
+            
+            Return the email as a JSON object with "subject" and "body" keys. The body should be plain text, well-formatted with line breaks for paragraphs.`;
+            
+            const schema = { 
+                type: "OBJECT", 
+                properties: { 
+                    "subject": { "type": "STRING" }, 
+                    "body": { "type": "STRING" } 
+                }, 
+                required: ["subject", "body"] 
+            };
+
+            const result = await getFromAI(prompt, schema);
+
+            emailLoading.classList.add('hidden');
+            emailLoading.classList.remove('flex');
+            emailContent.classList.remove('hidden');
+
+            if (result && result.subject && result.body) {
+                document.getElementById('email-subject').value = result.subject;
+                document.getElementById('email-body').value = result.body;
+            } else {
+                document.getElementById('email-subject').value = "Error";
+                document.getElementById('email-body').value = "Could not generate an email draft. Please try again.";
+            }
+        }
+
+        function copyEmailToClipboard() {
+            const subject = document.getElementById('email-subject').value;
+            const body = document.getElementById('email-body').value;
+            const fullEmailText = `Subject: ${subject}\n\n${body}`;
+            const copyBtn = document.getElementById('copy-email-btn');
+            
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = fullEmailText;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            tempTextArea.setSelectionRange(0, 99999);
+
+            try {
+                document.execCommand('copy');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+            } catch (err) {
+                console.error('Oops, unable to copy', err);
+                copyBtn.textContent = 'Error!';
+                 setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+            }
+
+            document.body.removeChild(tempTextArea);
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('[data-action]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const action = e.currentTarget.dataset.action;
+                    if (action === 'practice') startRandomScenario();
+                    else if (action === 'create') showView('createScenario');
+                    else if (action === 'history') showHistoryList();
+                    else if (action === 'assigned') showAssignedScenarios();
+                    else if (action === 'quick-fire') startAIQuickFireRound();
+                    else if (action === 'admin-users') showAdminUserList();
+                    else if (action === 'admin-sessions') showAdminSessionList();
+                    else if (action === 'empathy-help') showView('empathyAssistant');
+                    else if (action === 'email-crafter') showView('emailCrafter');
+                    else if (action === 'saved-emails') showSavedEmails();
+                });
+            });
+            
+            document.querySelectorAll('.back-to-menu-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    clearSessionState();
+                    showView('mainMenu');
+                });
+            });
+
+            document.getElementById('get-empathy-help-btn').addEventListener('click', getEmpathyHelpFromAI);
+            document.getElementById('craft-email-btn').addEventListener('click', craftFollowUpEmailFromTool);
+            document.getElementById('recraft-email-btn').addEventListener('click', craftFollowUpEmailFromTool);
+            document.getElementById('save-email-btn').addEventListener('click', saveCraftedEmail);
+            document.getElementById('draft-email-btn').addEventListener('click', draftFollowUpEmail);
+            document.getElementById('copy-email-btn').addEventListener('click', copyEmailToClipboard);
+            document.getElementById('admin-dashboard-btn').addEventListener('click', () => showView('adminDashboard'));
+            document.getElementById('back-to-admin-dash-btn')?.addEventListener('click', () => showView('adminDashboard'));
+            document.getElementById('back-to-admin-dash-btn2')?.addEventListener('click', () => showView('adminDashboard'));
+            document.getElementById('back-to-history-list-btn').addEventListener('click', showHistoryList);
+            document.getElementById('restart-scenario-btn').addEventListener('click', () => startScenario(currentScenario));
+            document.getElementById('choose-another-scenario-btn').addEventListener('click', startRandomScenario);
+            document.getElementById('submit-response-btn').addEventListener('click', handleSubmitResponse);
+            document.getElementById('next-btn').addEventListener('click', loadStep);
+            document.getElementById('analyze-tone-btn').addEventListener('click', getToneAnalysisFromAI);
+            document.getElementById('get-suggestions-btn').addEventListener('click', getSuggestionsFromAI);
+            document.getElementById('user-response').addEventListener('input', saveSessionState);
+            
+            document.getElementById('generate-scenario-btn').addEventListener('click', async () => {
+                const topic = document.getElementById('scenario-topic').value.trim();
+                if (!topic) return;
+                const prompt = `Generate a new customer service empathy training scenario for Tempo.fit based on the topic: "${topic}". The output must be a valid JSON object with: "title", "description", "persona", and a 3-step "dialogue_tree" where the last step is a happy resolution.`;
+                const schema = { type: "OBJECT", properties: { "title": { "type": "STRING" }, "description": { "type": "STRING" }, "persona": { "type": "STRING" }, "dialogue_tree": { "type": "ARRAY", "items": { "type": "OBJECT", "properties": { "customer": { "type": "STRING" } } } } }, required: ["title", "description", "persona", "dialogue_tree"] };
+                const newScenario = await getFromAI(prompt, schema);
+                const generateBtn = document.getElementById('generate-scenario-btn');
+                const originalText = generateBtn.textContent;
+                if (newScenario && newScenario.dialogue_tree.length >= 3) {
+                    const { error } = await db.from('scenarios').insert({ ...newScenario, author_id: userId });
+                    if (error) {
+                        console.error("Error saving new scenario:", error.message);
+                        generateBtn.textContent = 'Save Failed!';
+                        setTimeout(() => { generateBtn.textContent = originalText; }, 2000);
+                    } else {
+                        generateBtn.textContent = 'Saved!';
+                        setTimeout(() => { generateBtn.textContent = originalText; showView('mainMenu'); }, 1500);
+                    }
+                } else {
+                    generateBtn.textContent = 'Generation Failed!';
+                    setTimeout(() => { generateBtn.textContent = originalText; }, 2000);
+                }
+            });
+        }
+
+        // --- AUTHENTICATION ---
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const authError = document.getElementById('auth-error');
+
+        document.getElementById('show-register').addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+        });
+
+        document.getElementById('show-login').addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+        });
+
+        document.getElementById('register-btn').addEventListener('click', async () => {
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            authError.textContent = '';
+            const { data, error } = await db.auth.signUp({ email, password });
+            if (error) {
+                authError.textContent = error.message;
+            } else {
+                // Also create a user record in the public users table for the admin
+                const { error: insertError } = await db.from('users').insert({ id: data.user.id, email: data.user.email });
+                if (insertError) console.error("Error creating public user record:", insertError.message);
+            }
+        });
+
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            authError.textContent = '';
+            const { error } = await db.auth.signInWithPassword({ email, password });
+            if (error) authError.textContent = error.message;
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            clearSessionState();
+            await db.auth.signOut();
+        });
+
+        db.auth.onAuthStateChange((event, session) => {
+            if (session && session.user) {
+                const user = session.user;
+                userId = user.id;
+                isAdmin = user.email === 'admin@tempo.fit';
+                document.getElementById('logout-btn').classList.remove('hidden');
+                document.getElementById('header-subtitle').textContent = `Welcome, ${user.email}`;
+                if (isAdmin) {
+                    document.getElementById('admin-dashboard-btn').classList.remove('hidden');
+                }
+                
+                if (!loadSessionState()) {
+                    showView('mainMenu');
+                }
+
+            } else {
+                userId = null;
+                isAdmin = false;
+                clearSessionState();
+                document.getElementById('logout-btn').classList.add('hidden');
+                document.getElementById('header-subtitle').textContent = "Practice real-world Tempo.fit customer scenarios.";
+                document.getElementById('admin-dashboard-btn').classList.add('hidden');
+                showView('auth');
+            }
+        });
+
+        setupEventListeners();
+    </script>
+</body>
+</html>
+
+
+
+
+
